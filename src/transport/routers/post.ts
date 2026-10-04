@@ -1,15 +1,11 @@
-import { Router } from 'express'
-import { createPostRepository } from '../../repositories/post.js'
-import { createPostService } from '../../services/post.js'
-import { createPostHandler } from '../handlers/post.js'
+import type { PostHandlers } from "../handlers/post.js";
 
-const postRouter = Router()
-const postRepository = createPostRepository()
-const postService = createPostService(postRepository)
-const postHandler = createPostHandler(postService)
+import { Router } from "express";
+export function createPostRouter(handlers: PostHandlers){
+    const router = Router()
+    router.get('/', handlers.getPosts)
+    router.get('/:id', handlers.getPostById)
+    router.post('/', handlers.createPost)
 
-postRouter.get('/', postHandler.getPosts)
-postRouter.get('/:id', postHandler.getPostById)
-postRouter.post('/', postHandler.createPost)
-
-export default postRouter
+    return router
+}
