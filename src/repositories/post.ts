@@ -1,37 +1,38 @@
-import type { Post } from "../domain/post/entity.js"
 import type { PostRepository } from "../domain/post/repository.js"
-import type { db } from "../prisma/db.js"
+import { isStructuredError } from "@prisma/orm-postgres/utils"
 
 type DataBase = typeof import("../prisma/db.js").db
 
 export function createPostRepository(database: DataBase): PostRepository {
     return {
-        async getAll(category?: string, take?: number) {
-            let query = database.orm.public.Post.orderBy((post) => 
-                post.id.asc()
-            )
-            if (category) {
-                query = query.where({ category })
-            }
+        async getAll(categoryId?: number, take?: number) {
+            let query = categoryId !== undefined ? database.orm.public.Post.where({ categoryId }) 
+                : database.orm.public.Post;
+
+            query = query.include("category").orderBy((post) => post.id.asc());
+
             if (!take) {
-                return query.all()
+                return query.all();
             }
-            return query.limit(take).all()
+
+            return query.limit(take).all();
         },
-
         async getById(id: number) {
-            const post = await database.orm.public.Post.where({ id }).first()
-
+            const post = await database.orm.public.Post.where({ id }).include("category").first()
             return post ?? undefined
         },
 
         async findByName(name: string) {
-            const post = await database.orm.public.Post.where({ name }).first()
+            const pattern = name.replace(/[\\%_]/g, '\\$&')
+            const post = await database.orm.public.Post.where((row) => row.name.ilike(pattern)).first()
             return post ?? undefined
         },
 
-        async createPost(data) {
-            return database.orm.public.Post.create(data)
+        createPost(data) {
+            const { categoryId, ...postData } = data
+            return database.orm.public.Post.create({...postData,
+                category: (category) => category.connect({ id: categoryId })
+            })
         }
     }
 }
