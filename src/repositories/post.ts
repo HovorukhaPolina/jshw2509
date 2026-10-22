@@ -9,7 +9,7 @@ export function createPostRepository(database: DataBase): PostRepository {
             let query = categoryId !== undefined ? database.orm.public.Post.where({ categoryId }) 
                 : database.orm.public.Post;
 
-            query = query.include("category").orderBy((post) => post.id.asc());
+            query = query.include("category").include("author").orderBy((post) => post.id.asc());
 
             if (!take) {
                 return query.all();
@@ -18,7 +18,7 @@ export function createPostRepository(database: DataBase): PostRepository {
             return query.limit(take).all();
         },
         async getById(id: number) {
-            const post = await database.orm.public.Post.where({ id }).include("category").first()
+            const post = await database.orm.public.Post.where({ id }).include("category").include("author").first()
             return post ?? undefined
         },
 
@@ -28,11 +28,14 @@ export function createPostRepository(database: DataBase): PostRepository {
             return post ?? undefined
         },
 
-        createPost(data) {
-            const { categoryId, ...postData } = data
-            return database.orm.public.Post.create({...postData,
-                category: (category) => category.connect({ id: categoryId })
-            })
+        async createPost(data) {
+            const { categoryId, authorId, ...postData } = data;
+
+            return database.orm.public.Post.create({
+            ...postData,
+            category: { connect: { id: categoryId } },
+            author: { connect: { id: authorId } }
+            } as any) 
         }
     }
 }

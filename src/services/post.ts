@@ -32,7 +32,7 @@ export function createPostService(
             return repository.createPost({
                 name,
                 content: input.content.trim(),
-                author: input.author.trim(),
+                authorId: input.authorId,
                 categoryId: input.categoryId
             })
         }

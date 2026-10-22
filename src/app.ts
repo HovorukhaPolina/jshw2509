@@ -8,6 +8,12 @@ import { createCategoryHandler } from './transport/handlers/category.js'
 import { createCategoryRepository } from './repositories/category.js'
 import { createCategoryService } from './services/category.js'
 import { db } from './prisma/db.js';
+import { createUserRepository } from './repositories/user.js';
+import { createAuthService } from './services/auth/auth.js'; 
+import { hashPassword, verifyPassword } from './lib/password.js'
+import { signAccessToken } from './lib/jwt.js';
+import { createAuthHandler } from './transport/handlers/auth.js';
+import { createAuthRouter } from './transport/routers/auth.js'; 
 //const express = require('express');
 
 const app = express();
@@ -19,6 +25,17 @@ const postRepository = createPostRepository(db)
 const postService = createPostService(postRepository, categoryRepository)
 const postHandlers = createPostHandler(postService)
 const postRouter = createPostRouter(postHandlers)
+const userRepository = createUserRepository(db)
+
+const authService = createAuthService(userRepository, {
+    hash: hashPassword, 
+    verify: verifyPassword
+}, {
+    signAccessToken
+}) 
+
+const authHandler = createAuthHandler(authService)
+const authRouter = createAuthRouter(authHandler)
 // app.use(express.json()) - встроенный middleware, который позволяет спарсить json обьект в js обьект
 app.use(express.json())
 app.use('/posts', postRouter)

@@ -3,7 +3,7 @@ import type { Post } from "../../domain/post/entity.js"
 export interface CreatePostInput {
     name: string
     content: string
-    author: string
+    authorId: number
     categoryId: number
 }
 
