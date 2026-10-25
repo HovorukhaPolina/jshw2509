@@ -1,6 +1,16 @@
 import { db } from "./db.js";
 
-// Создаем категории и сохраняем их результаты, чтобы использовать их реальные ID
+await db.orm.public.User.create({ email: "user1@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user2@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user3@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user4@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user5@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user6@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user7@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user8@mail.com", passwordHash: "123" });
+await db.orm.public.User.create({ email: "user9@mail.com", passwordHash: "123" });
+
+
 const electronics = await db.orm.public.Category.create({
     name: "Electronics",
 });

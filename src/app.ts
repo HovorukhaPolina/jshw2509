@@ -14,9 +14,14 @@ import { hashPassword, verifyPassword } from './lib/password.js'
 import { signAccessToken } from './lib/jwt.js';
 import { createAuthHandler } from './transport/handlers/auth.js';
 import { createAuthRouter } from './transport/routers/auth.js'; 
-//const express = require('express');
+import cors from 'cors'
 
 const app = express();
+
+app.use(cors({origin: "http://localhost:5173"}))
+app.use(express.json())
+//const express = require('express');
+
 const categoryRepository = createCategoryRepository(db)
 const categoryService = createCategoryService(categoryRepository)
 const categoryHandlers = createCategoryHandler(categoryService)
@@ -36,10 +41,11 @@ const authService = createAuthService(userRepository, {
 
 const authHandler = createAuthHandler(authService)
 const authRouter = createAuthRouter(authHandler)
+
 // app.use(express.json()) - встроенный middleware, который позволяет спарсить json обьект в js обьект
-app.use(express.json())
 app.use('/posts', postRouter)
 app.use('/categories', categoryRouter)
+app.use('/auth', authRouter)
 // products    ->  router.get('/', getProducts)
 // products/1  ->  router.get('/:id', getProductById)
 
