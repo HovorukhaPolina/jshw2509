@@ -1,35 +1,44 @@
-import type { UserRepository } from "../../domain/user/repository.js"
+import type { PublicUser } from "../../domain/user/entity";
 
-import type { AuthService, PasswordHasher, TokenSign } from "./auth.types.js"
+//создаем интерфейс для данных аудентификации и регистр
+export interface AuthInput {
+    //вмещает имейл и пароль
+    email: string , 
+    password: string
+}
 
-export function createAuthService(
-    repository: UserRepository,
-    passwordHasher: PasswordHasher,
-    tokenSign: TokenSign
-): AuthService{
-    return{
-     async register(input){
-        const email = input.email.trim().toLowerCase()
-        const passwordHash = await passwordHasher.hash(input.password)
-        const user = await repository.createUser({email, passwordHash})
-        return{
-            id: user.id,
-            email: user.email
-        }
-     },
-     async login(input){
-        const email = input.email.trim().toLowerCase()
-        const user = await repository.getByEmail(email)
-        if(
-            !user||!await passwordHasher.verify(user.passwordHash, input.password)
-        ){throw new Error("INVALID_DATA")}
-        return{
-            user:{
-                id: user.id,
-                email: user.email
-            },
-            accessToken: tokenSign.signAccessToken(user.id)
-        }   
-     }
-    }
-} 
+//интерфейс для хеша пароля
+export interface PasswordHasher {
+    //вмещает функции хеша и проверки пароля
+    hash(password: string): Promise<string> , 
+    verify(password: string, hash: string):  Promise<boolean>
+}
+
+//интерфейс для подписи токенов
+export interface TokenSign {
+    //вмещает функции для создания токенов
+    signAccessToken(userId: number): string
+    signRefreshToken(userId: number): string
+}
+
+//интерфейс для верификации токенов
+export interface TokenVerify{
+    //вмещает функц для верификации
+    verifyRefreshToken(token: string): number
+}
+
+//интерфейс для токенов послк аудентификации
+export interface AuthTokens{
+    accessToken: string
+    refreshToken: string
+}
+
+//интерфейс для сервиса аудентификации и регистр
+export interface AuthService {
+    //вмещает все методы  которые реализтвать нужно сервису которые прописывали в auth ts
+    //регистрацию , логин, обновление токена и получение инфы про юзера
+    register(input: AuthInput): Promise<PublicUser> 
+    login(input: AuthInput): Promise<{user: PublicUser} & AuthTokens>
+    refresh(refreshToken: string): Promise<AuthTokens>
+    me(userId: number): Promise<PublicUser>
+}
