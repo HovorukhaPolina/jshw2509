@@ -8,3 +8,4 @@ export interface RefreshSessionRepository {
   rotate(oldHash: string, newHash: string, expiresAt: Date): Promise<boolean>
   deleteByHash(hash: string): Promise<void>
 }
+

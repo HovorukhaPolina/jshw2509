@@ -5,3 +5,4 @@ export interface RefreshSession {
   expiresAt: Date
   createdAt: Date
 }
+
