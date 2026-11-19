@@ -1,44 +1,96 @@
-import type { PublicUser } from "../../domain/user/entity";
+import type { RefreshSessionRepository } from "../../domain/refresh-session/repository.js"
+import type { UserRepository } from "../../domain/user/repository.js"
+import type {
+    AuthService,
+    PasswordHasher,
+    RefreshTokenHasher,
+    TokenSign,
+    TokenVerify
+} from "./auth.types.js"
 
-//создаем интерфейс для данных аудентификации и регистр
-export interface AuthInput {
-    //вмещает имейл и пароль
-    email: string , 
-    password: string
-}
+export function createAuthService(
+    repository: UserRepository,
+    passwordHasher: PasswordHasher,
+    tokenSign: TokenSign,
+    tokenVerify: TokenVerify,
+    sessions: RefreshSessionRepository,
+    refreshTokenHasher: RefreshTokenHasher
+): AuthService {
+    return {
+        async register(input) {
+            const email = input.email.trim().toLowerCase()
+            const existingUser = await repository.getByEmail(email)
+            if (existingUser) {
+                throw new Error("EMAIL_ALREADY_EXISTS")
+            }
 
-//интерфейс для хеша пароля
-export interface PasswordHasher {
-    //вмещает функции хеша и проверки пароля
-    hash(password: string): Promise<string> , 
-    verify(password: string, hash: string):  Promise<boolean>
-}
+            const passwordHash = await passwordHasher.hash(input.password)
+            const user = await repository.createUser({ email, passwordHash })
+            return { id: user.id, email: user.email }
+        },
 
-//интерфейс для подписи токенов
-export interface TokenSign {
-    //вмещает функции для создания токенов
-    signAccessToken(userId: number): string
-    signRefreshToken(userId: number): string
-}
+        async login(input) {
+            const email = input.email.trim().toLowerCase()
+            const user = await repository.getByEmail(email)
+            if (!user || !await passwordHasher.verify(user.passwordHash, input.password)) {
+                throw new Error("INVALID_DATA")
+            }
 
-//интерфейс для верификации токенов
-export interface TokenVerify{
-    //вмещает функц для верификации
-    verifyRefreshToken(token: string): number
-}
+            const accessToken = tokenSign.signAccessToken(user.id)
+            const refreshToken = tokenSign.signRefreshToken(user.id)
+            await sessions.create({
+                userId: user.id,
+                tokenHash: refreshTokenHasher.hash(refreshToken),
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            })
 
-//интерфейс для токенов послк аудентификации
-export interface AuthTokens{
-    accessToken: string
-    refreshToken: string
-}
+            return {
+                user: { id: user.id, email: user.email },
+                accessToken,
+                refreshToken
+            }
+        },
 
-//интерфейс для сервиса аудентификации и регистр
-export interface AuthService {
-    //вмещает все методы  которые реализтвать нужно сервису которые прописывали в auth ts
-    //регистрацию , логин, обновление токена и получение инфы про юзера
-    register(input: AuthInput): Promise<PublicUser> 
-    login(input: AuthInput): Promise<{user: PublicUser} & AuthTokens>
-    refresh(refreshToken: string): Promise<AuthTokens>
-    me(userId: number): Promise<PublicUser>
+        async refresh(refreshToken) {
+            const userId = tokenVerify.verifyRefreshToken(refreshToken)
+            const oldHash = refreshTokenHasher.hash(refreshToken)
+            const session = await sessions.getByHash(oldHash)
+            if (!session || session.userId !== userId || session.expiresAt <= new Date()) {
+                throw new Error("INVALID_REFRESH_TOKEN")
+            }
+
+            const user = await repository.getById(userId)
+            if (!user) {
+                throw new Error("INVALID_REFRESH_TOKEN")
+            }
+
+            const newRefreshToken = tokenSign.signRefreshToken(userId)
+            const accessToken = tokenSign.signAccessToken(userId)
+            const rotated = await sessions.rotate(
+                oldHash,
+                refreshTokenHasher.hash(newRefreshToken),
+                new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            )
+            if (!rotated) {
+                throw new Error("INVALID_REFRESH_TOKEN")
+            }
+
+            return {
+                accessToken,
+                refreshToken: newRefreshToken
+            }
+        },
+
+        async logout(refreshToken) {
+            if (refreshToken) {
+                await sessions.deleteByHash(refreshTokenHasher.hash(refreshToken))
+            }
+        },
+
+        async me(userId) {
+            const user = await repository.getById(userId)
+            if (!user) throw new Error("USER_NOT_FOUND")
+            return { id: user.id, email: user.email }
+        }
+    }
 }

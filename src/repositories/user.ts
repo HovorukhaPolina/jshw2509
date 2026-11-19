@@ -10,17 +10,18 @@ export function createUserRepository(
             return database.orm.public.User.where({ email }).first();
         },
 
+        async getById(id) {
+            return await database.orm.public.User.where({ id }).first()
+        },
+
         async createUser(data) {
             try {
                 return await database.orm.public.User.create(data);
             }
             catch(error){
                 if (
-                    // Перевіряємо що помилка це повноцінний об'єкт javascript
                     error instanceof Error &&
-                    // Перевіряємо що у помилки є властивість sqlState
                     "sqlState" in error &&
-                    // Код 23505 означає unique violation (порушує унікальність поля)
                     error.sqlState === "23505"
                 ){
                     throw new Error("EMAIL_ALREADY_EXISTS");
